@@ -232,6 +232,27 @@ static inline NSString * AFHMACSHA1Signature(NSString *baseString, NSString *con
 
 - (NSMutableDictionary *)authorizationHeaderWithRequest:(NSURLRequest *)request parameters:(NSDictionary *)parameters
 {
+    // use parameters for signature only if "application/x-www-form-urlencoded" (OAuth spec 9.1.1)
+    if (self.parameterEncoding != AFFormURLParameterEncoding) {
+        parameters = nil;
+    }
+    // get parameters from query string as well (OAuth spec 9.1.1)
+    NSMutableDictionary *mutableParameters = [parameters mutableCopy];
+    // make sure we have a parameters dictionary to add objects
+    if (mutableParameters == nil) {
+        mutableParameters = [[NSMutableDictionary alloc] init];
+    }
+    NSArray *queryParameters = [[[request URL] query] componentsSeparatedByString:@"&"];
+    for (NSString *parameter in queryParameters) {
+        // we support single value parameters
+        NSMutableArray *paramArray = [[parameter componentsSeparatedByString:@"="] mutableCopy];
+        NSString *key = [paramArray objectAtIndex:0];
+        [paramArray removeObjectAtIndex:0];
+        NSString *value = [paramArray componentsJoinedByString:@"="];
+        [mutableParameters setObject:value forKey:key];
+    }
+    parameters = mutableParameters;
+
     NSMutableDictionary *authorizationHeader = [[NSMutableDictionary alloc] initWithDictionary:@{@"oauth_nonce": _nonce,
                                                 @"oauth_signature_method": @"HMAC-SHA1",
                                                 @"oauth_timestamp": _timestamp,
